@@ -21,18 +21,26 @@ def load_langgraph_agenticai_app():
         st.error("Error: Failed to load user input from the UI.")
         return
 
-    # 3. Render Historical Messages
+    # 3. Render Historical Messages (Synced with Extraordinary UI)
     for msg in st.session_state.messages:
         if isinstance(msg, HumanMessage):
-             st.markdown(f'''<div class="chat-bubble user-bubble">{msg.content}</div>''', unsafe_allow_html=True)
+             st.markdown(f'''
+             <div class="avatar-container avatar-user">
+                 <span style="background: #EEF2FF; padding: 6px 12px; border-radius: 8px;">◈ YOU</span>
+             </div>
+             <div class="chat-bubble user-bubble">{msg.content}</div>''', unsafe_allow_html=True)
         elif isinstance(msg, AIMessage):
-             st.markdown(f'''<div class="chat-bubble assistant-bubble">{msg.content}</div>''', unsafe_allow_html=True)
+             st.markdown(f'''
+             <div class="avatar-container avatar-ai">
+                 <span style="background: #ECFDF5; padding: 6px 12px; border-radius: 8px;">◈ AGENT</span>
+             </div>
+             <div class="chat-bubble assistant-bubble">{msg.content}</div>''', unsafe_allow_html=True)
     
     # 4. Handle Input
     if st.session_state.get('IsFetchButtonClicked', False):
         user_message = st.session_state.timeframe 
     else :
-        user_message = st.chat_input("What can I help you with today?")
+        user_message = st.chat_input("What can I help you elevate today?")
 
     if user_message:
         try:
