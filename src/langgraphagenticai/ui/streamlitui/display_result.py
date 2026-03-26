@@ -13,50 +13,62 @@ class DisplayResultStreamlit:
         graph = self.graph
         user_message = self.user_message
         
-        if usecase == "Basic Chatbot":
-            # Initialize state with a HumanMessage
-            initial_state = {"messages": [HumanMessage(content=user_message)]}
-            for event in graph.stream(initial_state):
-                for value in event.values():
-                    if "messages" in value:
-                        msg = value["messages"][-1] if isinstance(value["messages"], list) else value["messages"]
-                        
-                        # User Section
-                        st.markdown(f'''<div style="font-size: 0.8rem; color: #4F46E5; font-weight: 700; margin-bottom: 0.5rem;">YOU</div>
-                        <div class="content-card">{user_message}</div>''', unsafe_allow_html=True)
-                        
-                        # Assistant Section
-                        st.markdown(f'''<div style="font-size: 0.8rem; color: #10B981; font-weight: 700; margin-bottom: 0.5rem;">ASSISTANT</div>
-                        <div class="content-card">{msg.content}</div>''', unsafe_allow_html=True)
+        # 1. Initialize History if not exists
+        if "messages" not in st.session_state:
+            st.session_state.messages = []
 
-        elif usecase == "Chatbot With Web":
-            initial_state = {"messages": [HumanMessage(content=user_message)]}
-            res = graph.invoke(initial_state)
-            for message in res.get('messages', []):
-                if isinstance(message, HumanMessage):
-                    st.markdown(f'''<div style="font-size: 0.8rem; color: #4F46E5; font-weight: 700; margin-bottom: 0.5rem;">YOU</div>
-                    <div class="content-card">{message.content}</div>''', unsafe_allow_html=True)
-                elif isinstance(message, ToolMessage):
-                    with st.expander("🛠️ Tool Trace"):
-                        st.code(message.content, language="json")
-                elif isinstance(message, AIMessage) and message.content:
-                    st.markdown(f'''<div style="font-size: 0.8rem; color: #10B981; font-weight: 700; margin-bottom: 0.5rem;">ASSISTANT</div>
-                    <div class="content-card">{message.content}</div>''', unsafe_allow_html=True)
+        # UI Container for centered chat
+        chat_container = st.container()
 
-        elif usecase == "AI News":
-            frequency = self.user_message
-            with st.spinner("Processing news feed..."):
-                initial_state = {"messages": [HumanMessage(content=frequency)]}
-                result = graph.invoke(initial_state)
-                try:
-                    # Read the markdown file from the correct src directory
-                    AI_NEWS_PATH = f"./src/AINews/{frequency.lower()}_summary.md"
-                    with open(AI_NEWS_PATH, "r") as file:
-                        markdown_content = file.read()
+        with chat_container:
+            if usecase == "Basic Chatbot":
+                # User Message
+                st.session_state.messages.append(HumanMessage(content=user_message))
+                st.markdown(f'''<div class="chat-bubble user-bubble">{user_message}</div>''', unsafe_allow_html=True)
+                
+                initial_state = {"messages": [HumanMessage(content=user_message)]}
+                for event in graph.stream(initial_state):
+                    for value in event.values():
+                        if "messages" in value:
+                            msg = value["messages"][-1] if isinstance(value["messages"], list) else value["messages"]
+                            # Assistant Message
+                            if isinstance(msg, AIMessage):
+                                st.session_state.messages.append(msg)
+                                st.markdown(f'''<div class="chat-bubble assistant-bubble">{msg.content}</div>''', unsafe_allow_html=True)
 
-                    st.markdown(f'''<div style="font-size: 0.8rem; color: #4F46E5; font-weight: 700; margin-bottom: 0.5rem;">NEWS DISPATCH</div>
-                    <div class="content-card">{markdown_content}</div>''', unsafe_allow_html=True)
-                except FileNotFoundError:
-                    st.error(f"Error: Output not found at {AI_NEWS_PATH}")
-                except Exception as e:
-                    st.error(f"Error: {str(e)}")
+            elif usecase == "Chatbot With Web":
+                # User Message
+                st.session_state.messages.append(HumanMessage(content=user_message))
+                st.markdown(f'''<div class="chat-bubble user-bubble">{user_message}</div>''', unsafe_allow_html=True)
+                
+                initial_state = {"messages": [HumanMessage(content=user_message)]}
+                res = graph.invoke(initial_state)
+                for message in res.get('messages', []):
+                    if isinstance(message, ToolMessage):
+                        with st.status("🔍 Researching...", expanded=False):
+                            st.code(message.content, language="json")
+                    elif isinstance(message, AIMessage) and message.content:
+                        st.session_state.messages.append(message)
+                        st.markdown(f'''<div class="chat-bubble assistant-bubble">{message.content}</div>''', unsafe_allow_html=True)
+
+            elif usecase == "AI News":
+                frequency = self.user_message
+                st.session_state.messages.append(HumanMessage(content=f"Generate {frequency} news report"))
+                
+                with st.spinner("Compiling Dispatch..."):
+                    initial_state = {"messages": [HumanMessage(content=frequency)]}
+                    result = graph.invoke(initial_state)
+                    try:
+                        AI_NEWS_PATH = f"./src/AINews/{frequency.lower()}_summary.md"
+                        with open(AI_NEWS_PATH, "r") as file:
+                            markdown_content = file.read()
+
+                        st.session_state.messages.append(AIMessage(content=markdown_content))
+                        st.markdown(f'''<div class="chat-bubble assistant-bubble" style="border-left: 2px solid #4F46E5;">
+                            <div style="font-weight: 700; color: #4F46E5; margin-bottom: 1rem;">NEWS DISPATCH</div>
+                            {markdown_content}
+                        </div>''', unsafe_allow_html=True)
+                    except FileNotFoundError:
+                        st.error(f"Error: Output not found at {AI_NEWS_PATH}")
+                    except Exception as e:
+                        st.error(f"Error: {str(e)}")
