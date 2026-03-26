@@ -44,7 +44,7 @@ def load_langgraph_agenticai_app():
                 st.error("Error: LLM model could not be initialized")
                 return
             
-            usecase=user_input.get("selected_usecase")
+            usecase = user_input.get("selected_usecase")
             if not usecase:
                     st.error("Error: No use case selected.")
                     return
@@ -58,15 +58,11 @@ def load_langgraph_agenticai_app():
                  dr = DisplayResultStreamlit(usecase, graph, user_message)
                  dr.display_result_on_ui()
                  
-                 # Note: History persistence is usually best done by appending logic in display_result 
-                 # or by re-running. For this simple flow, we let DisplayResult handle the current one, 
-                 # but for basic Chatbot we can append here.
-                 if usecase == "Basic Chatbot":
-                      st.session_state.messages.append(HumanMessage(content=user_message))
-                      # In basic chatbot, the last message in the graph result is the AI response
-                      # This is a bit redundant with DisplayResult's internal loop but good for persistence.
+                 # 5. Reset button state to prevent loop
+                 st.session_state.IsFetchButtonClicked = False
                  
             except Exception as e:
+                 st.session_state.IsFetchButtonClicked = False
                  st.error(f"Error: Graph execution failed - {e}")
                  return
 

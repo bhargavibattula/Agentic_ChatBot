@@ -7,5 +7,8 @@ class State(TypedDict):
     """
     Represent the state of the application
     """
-    messages:Annotated[List , add_messages]
+    messages: Annotated[List, add_messages]
+    summary: str
+    news_data: List
+
 

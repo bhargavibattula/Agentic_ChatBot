@@ -12,63 +12,87 @@ class DisplayResultStreamlit:
         usecase = self.usecase
         graph = self.graph
         user_message = self.user_message
-        
+
         # 1. Initialize History if not exists
         if "messages" not in st.session_state:
             st.session_state.messages = []
 
-        # UI Container for centered chat
+        # UI Container for live chat
         chat_container = st.container()
 
         with chat_container:
+            # 2. Display the User's Message Immediately 
+            st.session_state.messages.append(HumanMessage(content=user_message))
+            st.markdown(f'''<div class="chat-bubble user-bubble">{user_message}</div>''', unsafe_allow_html=True)
+            
+            # 3. Handle Streaming with Status Updates
+            initial_state = {"messages": [HumanMessage(content=user_message)]}
+            
             if usecase == "Basic Chatbot":
-                # User Message
-                st.session_state.messages.append(HumanMessage(content=user_message))
-                st.markdown(f'''<div class="chat-bubble user-bubble">{user_message}</div>''', unsafe_allow_html=True)
-                
-                initial_state = {"messages": [HumanMessage(content=user_message)]}
-                for event in graph.stream(initial_state):
-                    for value in event.values():
-                        if "messages" in value:
-                            msg = value["messages"][-1] if isinstance(value["messages"], list) else value["messages"]
-                            # Assistant Message
-                            if isinstance(msg, AIMessage):
-                                st.session_state.messages.append(msg)
-                                st.markdown(f'''<div class="chat-bubble assistant-bubble">{msg.content}</div>''', unsafe_allow_html=True)
+                with st.status("🧠 Thinking...", expanded=False) as status:
+                    final_msg = None
+                    for event in graph.stream(initial_state):
+                        for value in event.values():
+                            if "messages" in value:
+                                msg = value["messages"][-1] if isinstance(value["messages"], list) else value["messages"]
+                                if isinstance(msg, AIMessage):
+                                    final_msg = msg
+                    status.update(label="Response generated", state="complete")
+                    if final_msg:
+                        st.session_state.messages.append(final_msg)
+                        st.markdown(f'''<div class="chat-bubble assistant-bubble">{final_msg.content}</div>''', unsafe_allow_html=True)
 
             elif usecase == "Chatbot With Web":
-                # User Message
-                st.session_state.messages.append(HumanMessage(content=user_message))
-                st.markdown(f'''<div class="chat-bubble user-bubble">{user_message}</div>''', unsafe_allow_html=True)
-                
-                initial_state = {"messages": [HumanMessage(content=user_message)]}
-                res = graph.invoke(initial_state)
-                for message in res.get('messages', []):
-                    if isinstance(message, ToolMessage):
-                        with st.status("🔍 Researching...", expanded=False):
-                            st.code(message.content, language="json")
-                    elif isinstance(message, AIMessage) and message.content:
-                        st.session_state.messages.append(message)
-                        st.markdown(f'''<div class="chat-bubble assistant-bubble">{message.content}</div>''', unsafe_allow_html=True)
+                with st.status("🔍 Researching...", expanded=True) as status:
+                    final_msg = None
+                    for event in graph.stream(initial_state):
+                        if "chatbot" in event:
+                             status.update(label="Analyzing query...", state="running")
+                        if "tools" in event:
+                             status.update(label="Searching the web...", state="running")
+                             # Display tool output for transparency
+                             tool_msg = event["tools"]["messages"][-1]
+                             st.code(tool_msg.content, language="json")
+                        
+                        for value in event.values():
+                            if "messages" in value:
+                                msg = value["messages"][-1] if isinstance(value["messages"], list) else value["messages"]
+                                if isinstance(msg, AIMessage) and msg.content:
+                                    final_msg = msg
+                    status.update(label="Analysis complete", state="complete", expanded=False)
+                    if final_msg:
+                        st.session_state.messages.append(final_msg)
+                        st.markdown(f'''<div class="chat-bubble assistant-bubble">{final_msg.content}</div>''', unsafe_allow_html=True)
 
             elif usecase == "AI News":
-                frequency = self.user_message
-                st.session_state.messages.append(HumanMessage(content=f"Generate {frequency} news report"))
-                
-                with st.spinner("Compiling Dispatch..."):
-                    initial_state = {"messages": [HumanMessage(content=frequency)]}
-                    result = graph.invoke(initial_state)
-                    try:
-                        AI_NEWS_PATH = f"./src/AINews/{frequency.lower()}_summary.md"
-                        with open(AI_NEWS_PATH, "r") as file:
-                            markdown_content = file.read()
+                with st.status("📡 Fetching News Pipeline...", expanded=True) as status:
+                    final_summary = None
+                    for event in graph.stream(initial_state):
+                        if "fetch_news" in event:
+                            status.update(label="Scanning global AI headlines...", state="running")
+                        elif "summarize_news" in event:
+                            status.update(label="Synthesizing news articles...", state="running")
+                        elif "save_result" in event:
+                            status.update(label="Finalizing report...", state="running")
+                        
+                        for value in event.values():
+                            if isinstance(value, dict):
+                                if "messages" in value:
+                                    msg = value["messages"][-1]
+                                    if isinstance(msg, AIMessage):
+                                        final_summary = msg.content
+                                if "summary" in value:
+                                    final_summary = value["summary"]
+                    
+                    status.update(label="Dispatch ready", state="complete", expanded=False)
 
-                        st.session_state.messages.append(AIMessage(content=markdown_content))
+                    
+                    if final_summary:
+                        summary_msg = AIMessage(content=final_summary)
+                        st.session_state.messages.append(summary_msg)
                         st.markdown(f'''<div class="chat-bubble assistant-bubble" style="border-left: 2px solid #4F46E5;">
                             <div style="font-weight: 700; color: #4F46E5; margin-bottom: 1rem;">NEWS DISPATCH</div>
-                            {markdown_content}
+                            {final_summary}
                         </div>''', unsafe_allow_html=True)
-                    except FileNotFoundError:
-                        st.error(f"Error: Output not found at {AI_NEWS_PATH}")
-                    except Exception as e:
-                        st.error(f"Error: {str(e)}")
+                    else:
+                        st.warning("No summary was generated.")
