@@ -86,4 +86,3 @@ app.py                # Entry point
 
 ---
 
-*Engineered with ⚡ by Antigravity.*
