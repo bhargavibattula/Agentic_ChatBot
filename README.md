@@ -16,7 +16,19 @@ An extraordinary, high-end AI application powered by **LangGraph**, **Groq**, an
 
 ---
 
-## 🛠️ Technology Stack
+## 🏆 ChatGPT vs. Node Engine v2
+
+| Feature | ChatGPT (Standard) | ⚡ Node Engine v2 |
+| :--- | :--- | :--- |
+| **Interface** | Minimalist / Flat | **Extraordinary Glassmorphic Luxe** |
+| **Streaming** | Standard Typing | **Animated Token Dispatches** |
+| **Web Research** | In-house Search | **Tavily Agentic Integration** |
+| **Specialized Pipelines** | Manual Prompting | **Automated News Protocol** |
+| **Infrastructure** | Proprietary / Closed | **Modular LangGraph Core** |
+| **AVATAR Branding** | Simple Initials | **◈ Diamond-Badge Identity** |
+
+---
+
 - **Framework**: [LangGraph](https://github.com/langchain-ai/langgraph) (Agentic logic & state management)
 - **Interface**: [Streamlit](https://streamlit.io/) (Custom SaaS-style UI)
 - **Intelligence**: [LangChain Groq](https://github.com/langchain-ai/langchain-groq) (Llama-3-70b / MIxtral-8x7b)
